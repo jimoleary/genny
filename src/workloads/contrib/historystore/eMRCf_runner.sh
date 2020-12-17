@@ -5,6 +5,7 @@
 
 mongo_bin=~/mdb/bin             # Where to find the MongoDB binaries
 db_dir=/user_home/test          # Location where the mongod's can put their db files
+db_dir=~/test          # Location where the mongod's can put their db files
 genny_dir=~/src/genny           # Path to top-level directory of Genny source
 metrics_dir=~/proj/metrics      # Directory where the test will store results and other output
 
@@ -27,25 +28,33 @@ usage() {
 
 start_psa() {
 
-    killall -9 mongos &> /dev/null
-    killall -9 mongod &> /dev/null
+    hosts=(md0 md1  md2)
+    # killall -9 mongos &> /dev/null
+    # killall -9 mongod &> /dev/null
+    for host in "${hosts[@]}"; do
+        echo "$host"
+        ssh $host "killall -9 mongos ; killall -9 mongod " &> /dev/null
+    done
     sleep 1
-
-    for n in {1..3}
-    do
-        mkdir -p $db_dir/node$n/db
-        rm -rf $db_dir/node$n/db/*
+    # for host in "${hosts[@]}"; do
+    #     for n in {1..3}
+    #     do
+    #         ssh $host "echo $(hostname); rm -rfv $db_dir/node$n/db/\*;mkdir -pv $db_dir/node$n/db"
+    #     done
+    # done
+    for host in "${hosts[@]}"; do
+        ssh $host "echo $(hostname); rm -rfv $db_dir/;mkdir -pv $db_dir/node{1..3}/db"
     done
 
-    mongod --replSet rs --dbpath $db_dir/node1/db --logpath $db_dir/node1/db/mongod.log --port 27017 --fork $mongo_opts
-    mongod --replSet rs --dbpath $db_dir/node2/db --logpath $db_dir/node2/db/mongod.log --port 27018 --fork $mongo_opts
-    mongod --replSet rs --dbpath $db_dir/node3/db --logpath $db_dir/node3/db/mongod.log --port 27019 --fork $mongo_opts
+    ssh md0 "~/bin/mongod --bind_ip_all --replSet rs --dbpath $db_dir/node1/db --logpath $db_dir/node1/db/mongod.log --port 27017 --fork $mongo_opts"
+    ssh md1 "~/bin/mongod --bind_ip_all --replSet rs --dbpath $db_dir/node2/db --logpath $db_dir/node2/db/mongod.log --port 27018 --fork $mongo_opts"
+    ssh md2 "~/bin/mongod --bind_ip_all --replSet rs --dbpath $db_dir/node3/db --logpath $db_dir/node3/db/mongod.log --port 27019 --fork $mongo_opts"
 
-    mongo --eval 'rs.initiate()' &> /dev/null
-    mongo --eval 'rs.add("localhost:27018")' &> /dev/null
-    mongo --eval 'rs.addArb("localhost:27019")' &> /dev/null
+    ssh md0 "~/bin/mongo --eval 'rs.initiate()'" &> /dev/null
+    ssh md0 "~/bin/mongo --eval 'rs.add(\"md1:27018\")'" &> /dev/null
+    ssh md0 "~/bin/mongo --eval 'rs.addArb(\"md2:27019\")'" &> /dev/null
     sleep 2
-    mongo --eval 'rs.status()' | grep -e 'name' -e 'stateStr'
+    ssh md0 "~/bin/mongo --eval 'rs.status()' | grep -e 'name' -e 'stateStr'"
 }
 
 run_genny()
@@ -56,12 +65,13 @@ run_genny()
     rm -rf build/genny-metrics* &> /dev/null
 
     echo "Running $name ..."
-    ./scripts/genny run --workload-file $job --mongo-uri 'mongodb://localhost:27017'
+    # ./scripts/genny run --workload-file $job --mongo-uri 'mongodb://localhost:27017'
+    ./scripts/genny run --workload-file $job --mongo-uri 'mongodb://md0:27017'
 
     mv build/genny-metrics $metrics_dir/$name
     mv build/genny-metrics.csv $metrics_dir/$name/$name.csv
-    ls -l $db_dir/node1/db > $metrics_dir/$name/$name.ls.out
-    mongo --eval 'db.runCommand({collStats: "Collection0"})' > $metrics_dir/$name/$name.collstats
+    ssh md0 "ls -l $db_dir/node1/db" > $metrics_dir/$name/$name.ls.out
+    ssh md0 "~/bin/mongo --eval 'db.runCommand({collStats: \"Collection0\"})'" > $metrics_dir/$name/$name.collstats
 }
 
 emrcf_opt="--enableMajorityReadConcern true"
@@ -104,6 +114,11 @@ populate=~/proj/eMRCfPopulate.yml
 grow=~/proj/eMRCfGrow.yml
 benchmark=~/proj/eMRCfBench.yml
 
+
+populate=~/src/genny/dist/etc/genny/workloads/contrib/historystore/eMRCfPopulate.yml
+grow=~/src/genny/dist/etc/genny/workloads/contrib/historystore/eMRCfGrow.yml
+benchmark=~/src/genny/dist/etc/genny/workloads/contrib/historystore/eMRCfBench.yml
+
 # Now we run the workload.
 
 echo "Setting up PSA replica set ..."
@@ -122,7 +137,7 @@ run_genny $populate Populate
 if [ "$kill_secondary" = "yes" ]
 then
     echo "Shutting down secondary node ..."
-    mongod --dbpath $db_dir/node2/db --shutdown &> /dev/null
+    ssh md1 "~/bin/mongod --dbpath $db_dir/node2/db --shutdown" &> /dev/null
 fi
 
 # Let any delayed processing quiesce then run the benchmark
@@ -139,9 +154,16 @@ done
 sleep 120
 run_genny $benchmark Bench_final
 
+sleep 120
+ssh md1 "~/bin/mongod --bind_ip_all --replSet rs --dbpath $db_dir/node2/db --logpath $db_dir/node2/db/mongod.log --port 27018 --fork $mongo_opts"
+run_genny $benchmark Bench_catchup
+
 # Copy additional data from run.
-cp -R $db_dir/node1/db/diagnostic.data $metrics_dir
-cp -R $db_dir/node1/db/mongod.log $metrics_dir
+# cp -R $db_dir/node1/db/diagnostic.data $metrics_dir
+# cp -R $db_dir/node1/db/mongod.log $metrics_dir
+
+scp -r md0:$db_dir/node1/db/diagnostic.data $metrics_dir
+scp -r md0:$db_dir/node1/db/mongod.log $metrics_dir
 
 if [ "$plot" = "no" ]
 then
@@ -162,7 +184,7 @@ cd $metrics_dir
 
 echo "Preparing plots..."
 tmpfile=$(mktemp)
-for RUN in initial final
+for RUN in initial final catchup
 do
     mkdir $RUN &> /dev/null
     for PHASE in InsertPhase UpdateHeavyPhase ReadMostlyPhase DeletePhase
@@ -187,10 +209,10 @@ gnuplot << GPLOT_INSERT_PHASE
     set yrange [0:100]
     set ylabel "CDF"
     set key bottom right
-    set title "Insert Phase: Request latency distribution"
+    set title "Insert Phase: Request latency distribution (remote / $grow_count / $emrcf_opt)"
     set term jpeg linewidth 2 size 1280,960 font "arial,20.0"
     set output "insert.jpg"
-    plot "initial/InsertPhase" title "Before", "final/InsertPhase" title "After"
+    plot "initial/InsertPhase" title "Before", "final/InsertPhase" title "After", "catchup/InsertPhase" title "Catchup"
 GPLOT_INSERT_PHASE
 
 gnuplot << GPLOT_UPDATE_HEAVY_PHASE
@@ -200,10 +222,10 @@ gnuplot << GPLOT_UPDATE_HEAVY_PHASE
     set yrange [0:100]
     set ylabel "CDF"
     set key bottom right
-    set title "Update Heavy Phase: Request latency distribution"
+    set title "Update Heavy Phase: Request latency distribution (remote / $grow_count / $emrcf_opt)"
     set term jpeg linewidth 2 size 1280,960 font "arial,20.0"
     set output "update_heavy.jpg"
-    plot "initial/UpdateHeavyPhase" title "Before", "final/UpdateHeavyPhase" title "After"
+    plot "initial/UpdateHeavyPhase" title "Before", "final/UpdateHeavyPhase" title "After", "catchup/UpdateHeavyPhase" title "Catchup"
 GPLOT_UPDATE_HEAVY_PHASE
 
 gnuplot << GPLOT_READ_MOSTLY_PHASE
@@ -213,10 +235,10 @@ gnuplot << GPLOT_READ_MOSTLY_PHASE
     set yrange [0:100]
     set ylabel "CDF"
     set key bottom right
-    set title "Read Mostly Phase: Request latency distribution"
+    set title "Read Mostly Phase: Request latency distribution (remote / $grow_count / $emrcf_opt)"
     set term jpeg linewidth 2 size 1280,960 font "arial,20.0"
     set output "read_mostly.jpg"
-    plot "initial/ReadMostlyPhase" title "Before", "final/ReadMostlyPhase" title "After"
+    plot "initial/ReadMostlyPhase" title "Before", "final/ReadMostlyPhase" title "After", "catchup/ReadMostlyPhase" title "Catchup"
 GPLOT_READ_MOSTLY_PHASE
 
 gnuplot << GPLOT_DELETE_PHASE
@@ -226,8 +248,8 @@ gnuplot << GPLOT_DELETE_PHASE
     set yrange [0:100]
     set ylabel "CDF"
     set key bottom right
-    set title "Delete Phase: Request latency distribution"
+    set title "Delete Phase: Request latency distribution (remote / $grow_count / $emrcf_opt)"
     set term jpeg linewidth 2 size 1280,960 font "arial,20.0"
     set output "delete.jpg"
-    plot "initial/DeletePhase" title "Before", "final/DeletePhase" title "After"
+    plot "initial/DeletePhase" title "Before", "final/DeletePhase" title "After", "catchup/DeletePhase" title "Catchup"
 GPLOT_DELETE_PHASE
