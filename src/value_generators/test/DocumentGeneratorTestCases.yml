@@ -61,6 +61,87 @@ Tests:
     GivenTemplate: {a: []}
     ThenReturns: [{a: []}]
 
+  - Name: Sequence
+    GivenTemplate:
+      a: {^Sequence: {withValue: 1, nTimes: 1}}
+    ThenReturns:
+      - {a: [1]}
+      - {a: [1]}
+      - {a: [1]}
+      - {a: [1]}
+      - {a: [1]}
+
+  - Name: Sequence10
+    GivenTemplate:
+      a: {^Sequence: {withValue: 1, nTimes: 10}}
+    ThenReturns:
+      - {a: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}
+
+  - Name: SequenceRandomLen
+    GivenTemplate:
+      a: {^Sequence: {withValue: 1, nTimes: {^RandomInt: {min: 1, max: 5}}}}
+    ThenReturns:
+      - {a: [1]}
+      - {a: [1]}
+      - {a: [1]}
+      - {a: [1]}
+      - {a: [1, 1]}
+      - {a: [1, 1, 1, 1, 1]}
+
+  - Name: SequenceDoc
+    GivenTemplate:
+      a: {^Sequence: {withValue: {"first": 1}, nTimes: 1}}
+    ThenReturns:
+      - {a: [{"first": 1}]}
+
+  - Name: SequenceRandomInt
+    GivenTemplate:
+      a: {^Sequence: {withValue: {"first": {^RandomInt: {min: 10000000000, max: 10000000010}}}, nTimes: 1}}
+    ThenReturns:
+      - {a: [{"first": 10000000001 }]}
+
+  - Name: SequenceInc
+    GivenTemplate:
+      a: {^Sequence: {withValue: {^Inc: {start: 10000000000, step: 1}}, nTimes: 5}}
+    ThenReturns:
+      - {a: [10000000002,10000000003,10000000004,10000000005,10000000006]}
+
+  - Name: SequenceChoose
+    GivenTemplate:
+      a: {^Sequence: {withValue: {^Choose: {from: [1, "abc", {a: 1}]}}, nTimes: {^RandomInt: {min: 1, max: 5}}}}
+    ThenReturns:
+      - {a: [1] }
+      - {a: ["abc"] }
+      - {a: [ 1, 1, 1, { "a": 1 }, 1 ] }
+      - {a: [ { "a": 1 }, 1, { "a": 1 } ] }
+      - {a: [ 1, 1, { "a": 1 }, 1, "abc" ] }
+
+  - Name: Sequence Complex Docs
+    GivenTemplate:
+      a: {^Sequence: {withValue: { ts: {^RandomDate: {min: "2020-01-01", max: "2021-01-01"}},
+                                   caid: { ^RandomInt: { min: 0, max: 1000 } },
+                                   cuid: { ^RandomInt: { min: 0, max: 100000 } },
+                                   prod: { ^RandomInt: { min: 0, max: 10000 } },
+                                   prid: { ^RandomDouble: { min: 0.0, max: 1000.0 } },
+                                   data: {^Join: {array: ["aaaaaaaaaa", {^FastRandomString: {length: {^RandomInt: {min: 0, max: 10}}}}]}},
+                                 },
+                      nTimes: 2}}
+    ThenReturns:
+      - {a: [
+          { "ts" : { "$date" : { "$numberLong" : "1582750578258" },
+            "caid": { "$numberLong": "107" },
+            "cuid": { "$numberLong": "2216" },
+            "prod": {"$numberLong": "730" },
+            "prid": { "$numberDouble": "343.47207427608100261"},
+            "data": "aaaaaaaaaaIqrjrvuHk"}},
+          { "ts" : { "$date" : { "$numberLong" : "1586061958897" },
+            "caid": { "$numberLong": "399" },
+            "cuid": { "$numberLong": "13803" },
+            "prod": {"$numberLong": "4815" },
+            "prid": { "$numberDouble": "206.31674870518841658"},
+            "data" : "aaaaaaaaaaoEtN" }}
+        ]}
+
   - Name: one RandomInt
     GivenTemplate: {a: {^RandomInt: {min: 10000000000, max: 10000000010}}}
     ThenReturns: [{a: 10000000001}, {a: 10000000001}, {a: 10000000000}]

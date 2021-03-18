@@ -193,6 +193,18 @@ Actors:
 
             id_with_actor: {^Join: {array: ["ActorId-", {^ActorIdString: {}}]}}
 
+
+            # Generate some sequences.
+            seq10Ints: {^Sequence: {withValue: 1, nTimes: 10}}
+            seq10Docs: {^Sequence: {withValue: {"a": 1}, nTimes: 10}}
+            seq10RandomDocs: {^Sequence: {withValue: { ts: { ^Now: { } },
+                                                       caid: { ^RandomInt: { min: 0, max: 1000 } },
+                                                       cuid: { ^RandomInt: { min: 0, max: 100000 } },
+                                                       prod: { ^RandomInt: { min: 0, max: 10000 } },
+                                                       prid: { ^RandomDouble: { min: 0.0, max: 1000.0 } },
+                                                       data: { ^Join: { array: [ "aaaaaaaaaa", { ^FastRandomString: { length: { ^RandomInt: { min: 0, max: 10 } } } } ] } }},
+                                          nTimes: 10}}
+
   - Repeat: 1
     Collection: test
     Operation:

@@ -752,6 +752,39 @@ private:
 };
 
 
+/** `{^Sequence: {withValue: {a: b}, nTimes: 2}` */
+class SequenceGenerator : public Generator<bsoncxx::array::value> {
+public:
+    using ValueType = UniqueAppendable;
+
+    SequenceGenerator(const Node& node,
+                      GeneratorArgs generatorArgs,
+                      std::map<std::string, Parser<UniqueAppendable>>
+                          parsers)  //, const UniqueAppendable &&withValue)
+        : _rng{generatorArgs.rng},
+          _node{node},
+          _generatorArgs{generatorArgs},
+          _valueGen{valueGenerator<false, UniqueAppendable>(node["withValue"], generatorArgs, parsers)},
+          _nTimesGen{intGenerator(extract(node, "nTimes", "^Sequence"), generatorArgs)} {}
+
+    bsoncxx::array::value evaluate() override {
+        bsoncxx::builder::basic::array builder{};
+        auto times = _nTimesGen->evaluate();
+        for (int i = 0; i < times; ++i) {
+            _valueGen->append(builder);
+        }
+        return builder.extract();
+    }
+
+private:
+    DefaultRandom& _rng;
+    const Node& _node;
+    const GeneratorArgs& _generatorArgs;
+    const UniqueAppendable _valueGen;
+    const UniqueGenerator<int64_t> _nTimesGen;
+};
+
+
 class IncGenerator : public Generator<int64_t> {
 public:
     IncGenerator(const Node& node, GeneratorArgs generatorArgs)
@@ -929,6 +962,10 @@ const static std::map<std::string, Parser<UniqueAppendable>> allParsers{
     {"^Inc",
      [](const Node& node, GeneratorArgs generatorArgs) {
          return std::make_unique<IncGenerator>(node, generatorArgs);
+     }},
+    {"^Sequence",
+     [](const Node& node, GeneratorArgs generatorArgs) {
+         return std::make_unique<SequenceGenerator>(node, generatorArgs, allParsers);
      }},
 };
 
