@@ -1,0 +1,133 @@
+SchemaVersion: 2018-07-01
+Owner: "@mongodb/sharding"
+Description: |
+  Runs the shardCollection command on an existing large collection.
+
+  The workload consists of 2 phases:
+     1. Set the chunk size.
+     2. Enable Sharding
+     3. Shard the collection.
+
+  The collection is sharded on {build_id: 1, started: 1}.
+
+GlobalDefaults:
+
+  Database: &Database Coinbase
+  Namespace: &Namespace Coinbase.Collection0
+  ShardKey: &ShardKey {user_uuid: 1}
+  Chunksize: &Chunksize 64
+  MaxPhases: &MaxPhases 1
+
+Clients:
+  Default:
+    QueryOptions:
+      maxPoolSize: 300
+  # shardCollection command can take a long time to complete, set
+  # a much higher socket timeout.
+  ShardCollection:
+    QueryOptions:
+      maxPoolSize: 1
+      socketTimeoutMS: 36_000_000  # = 10 hours
+
+ActorTemplates:
+  - TemplateName: SetChunkSizeTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+      Type: CrudActor
+      Threads:  1
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [0]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            Database: config
+            Collection: settings
+            Operations:
+              - OperationMetricsName: SetChunkSizeMetrics
+                OperationName: updateOne
+                OperationCommand:
+                  # ThrowOnFailure: false
+                  enableSharding: {^Parameter: {Name: "Database", Default: *Database }}
+                  Filter: {_id: 'chunksize'}
+                  Update: {$set: {value: {^Parameter: {Name: "Chunksize", Default: *Chunksize }}}}
+                  OperationOptions:
+                    Upsert: true
+
+  - TemplateName: EnableShardingTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+      Type: AdminCommand
+      Threads:  1
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [0]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            Database: admin
+            Operations:
+              - OperationMetricsName: EnableShardingMetrics
+                OperationName: AdminCommand
+                OperationCommand:
+                  # ThrowOnFailure: false
+                  enableSharding: {^Parameter: {Name: "Database", Default: *Database }}
+
+  - TemplateName: ShardCollectionTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+      Type: AdminCommand
+      Threads:  1
+      ClientName: ShardCollection
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            Database: admin
+            Operations:
+              - OperationMetricsName: ShardCollectionMetrics
+                OperationName: AdminCommand
+                OperationCommand:
+                  # ThrowOnFailure: false
+                  shardCollection: {^Parameter: {Name: "shardCollection", Default: *Namespace }}
+                  key: {^Parameter: {Name: "key", Default: *ShardKey }}
+
+Actors:
+  ## Set the chunk size.
+  - ActorFromTemplate:
+      TemplateName: SetChunkSizeTemplate
+      TemplateParameters:
+        Active: [0]
+        Chunksize: 64
+
+  ## Enable Sharding for the Database.
+  - ActorFromTemplate:
+      TemplateName: EnableShardingTemplate
+      TemplateParameters:
+        Active: [0]
+
+  - ActorFromTemplate:
+      TemplateName: ShardCollectionTemplate
+      TemplateParameters:
+        Active: [1]
+
+  # Guard Against timeout for no output.
+  - Name: LoggingActor
+    Type: LoggingActor
+    Threads: 1
+    Phases:
+      OnlyActiveInPhases:
+        Active: [1]
+        NopInPhasesUpTo: *MaxPhases
+        PhaseConfig:
+          LogEvery: 15 minutes
+          Blocking: None
+
+# #Params so no AutoRun.
+# AutoRun:
+#   - When:
+#       mongodb_setup:
+#         $eq:
+#           - shard-single-stress

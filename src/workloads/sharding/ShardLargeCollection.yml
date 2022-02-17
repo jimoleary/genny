@@ -1,0 +1,1290 @@
+SchemaVersion: 2018-07-01
+Owner: "@mongodb/sharding"
+Description: |
+  Runs the shardCollection command on an existing large collection.
+
+  The workload consists of a number of phases. 
+    * Phase 0 is configuration and warmup.
+    * Odd number phases quiesce (with a before / after delay) to distinguish between work phases.
+    * Even number phases:
+      2. Baseline fixed duration workload phase, the metrics are called *.Before.
+      4. EnableSharding and non blocking workload phasess. The metrics only run as long as 
+         the enable sharding command and are called *.During. 
+      6. Post sharding fixed duration workload blocking phase, the metrics are called *.After.
+
+  The collection is sharded on {build_id: 1, started: 1}.
+
+  The Full build_id range is:
+    5714f5450000000000000000 be07c4470a38b47f --> 1460991301
+    575d717e0000000000000000 be07c445c3095761 --> 1465741694
+  There are also about 2M docs with a string build_id. These are being ignored for now.
+  
+  The started range 2016-04-18T14:54:02Z ... 2016-10-17T16:05:54.238Z
+
+  New Documents will have ObjectIds or dates be greater than these ranges.
+
+GlobalDefaults:
+  Nop: &Nop {Nop: true}
+
+  Database: &Database buildlogs
+  Collection: &Collection logs
+  Namespace: &Namespace buildlogs.logs
+  ShardKey: &ShardKey {build_id: 1, started: 1}
+  Chunksize: &Chunksize 64
+
+#  ThreadsValue: &ThreadsValue 32
+  ThreadsValue: &ThreadsValue 1
+  Duration: &Duration 3 minutes
+  WarmupDuration: &WarmupDuration 1 minutes
+  MaxPhases: &MaxPhases 7
+
+  InsertGlobalRateValue: &InsertGlobalRateValue 1 per 1250 microsecond
+  QueryGlobalRateValue: &QueryGlobalRateValue 1 per 750 microsecond
+  UpdateGlobalRateValue: &UpdateGlobalRateValue 1 per 1250 microsecond
+  DeleteGlobalRateValue: &DeleteGlobalRateValue 1 per 2500 microsecond
+
+Document: &Doc  # Documents are approximately 1 KB in size
+  build_id: {^ObjectId: ""}
+  test_id: {^ObjectId: ""}
+  seq: 1
+  started: {^RandomDate: {}}
+  lines:
+    ^Choose:
+      from:
+        -
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+        -
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+        -
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+        -
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+        -
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+        -
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+        -
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+          -
+            - {^RandomDate: {}}
+            - {^RandomString: {length: {^RandomInt: {min: 64, max: 512}}}}
+      weights: [64, 32, 16, 8, 4, 2, 1]
+
+BuildIDs:
+  10: &10buildIDs
+    - 57471574be07c424ff04fd0b
+    - 574722ad904130217c017e2f
+    - 57471649be07c424ff05142d
+    - 57471cb0be07c424ff0651dc
+    - 574713a79041301075091919
+    - 5747109c904130107508b983
+    - 5747113d904130107508ce07
+    - 574714bebe07c424ff04e31f
+    - 57471463be07c424ff04d2e0
+    - 574713b49041301075091ab3
+  50: &50buildIDs
+    - 57471603be07c424ff050cb8
+    - 57471811be07c424ff0556f5
+    - 57472075904130217c00c24c
+    - 57471b1590413010750a49fd
+    - 57472256904130217c0161e4
+    - 57471fa4904130217c007cba
+    - 57471113904130107508c9d1
+    - 57472117be07c424ff07de32
+    - 574716cabe07c424ff0526c7
+    - 57471bd6be07c424ff060da2
+    - 57471a5b90413010750a1f5b
+    - 574719f2be07c424ff05a9e3
+    - 574715d09041301075096b12
+    - 574713b49041301075091ab7
+    - 57471710be07c424ff05324b
+    - 5714f562be07c4470a38b849
+    - 57471769be07c424ff053e78
+    - 5714f591904130304a38d217
+    - 574716e9be07c424ff052beb
+    - 57471eafbe07c424ff072b5b
+    - 5714f571904130304a38ccd5
+    - 5747238b904130217c01ca1f
+    - 57471165be07c424ff046e5c
+    - 574713319041301075090809
+    - 57471545be07c424ff04f652
+    - 57471a4e90413010750a1cc1
+    - 57471f69be07c424ff0755c7
+    - 57471bda90413010750a7204
+    - 57471c8690413010750aa71c
+    - 5747108abe07c424ff045289
+    - 5747158dbe07c424ff050023
+    - 574718f6be07c424ff058086
+    - 57471fb7be07c424ff0766be
+    - 57471663be07c424ff051714
+    - 57471e50904130217c0024be
+    - 57471ec9904130217c004c34
+    - 57471805be07c424ff055454
+    - 5747104f904130107508aaba
+    - 57471bdb90413010750a7254
+    - 57471f41be07c424ff074bb8
+    - 57471293904130107508f428
+    - 57472117be07c424ff07de32
+    - 57471a1abe07c424ff05b161
+    - 5747199cbe07c424ff059bea
+    - 574715da9041301075096c17
+    - 571e433bbe07c421bd1498a5
+    - 57471c8990413010750aa7d0
+    - 57471a5090413010750a1d21
+    - 57471cf590413010750ad08f
+    - 57471654be07c424ff05154a
+
+
+Filters:
+  # Filter to match one of the 50 build ids above
+  - &HotFilter {build_id: {^ObjectId: {^Choose: {from: *50buildIDs}}}}
+  # Get any document.
+  - &RandomBuildIDFilter # Filter to match a random build id from the OID range
+    build_id: {$gte: {^ObjectId: {^FormatString: {"format": "%08x0000000000000000", "withArgs":[{^RandomInt: {min: 1460991301, max: 1465741694 }}]}}}}
+  # Get any document.
+  - &OldBuildIDFilter # Filter to match a random build id from the OID range
+    build_id: {$gte: {^ObjectId: {^FormatString: {"format": "%08x0000000000000000", "withArgs":[1460991301]}}}}
+  # Get any document.
+  - &Seq1Filter # Filter to match a random build id from the OID range
+    seq: 1
+  - &RandomStartedFilter # Filter to match a random started date from the full range
+    started:
+      $lte:
+        ^RandomDate:
+          min: "2016-04-18T14:55:05.000"
+          max: "2016-10-17T16:05:54.238"
+  - &RandomBuildIDStartedFilter # Filter to match a random build_id / started date from the full range
+    build_id:
+      {$gte: {^ObjectId: {^FormatString: {"format": "%08x0000000000000000", "withArgs":[{^RandomInt: {min: 1460991301, max: 1465741694 }}]}}}}
+    started:
+      $lte:
+        ^RandomDate:
+          min: "2016-04-18T14:55:05.000"
+          max: "2016-10-17T16:05:54.238"
+
+Queries:
+  - &HotQuery
+    OperationName: findOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *HotFilter
+      Options:
+        Hint: build_id_1_started_1
+        Comment: "Hot Query"
+  - &HotCoveredQuery  # Assumes an index matching projection
+    OperationName: findOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *HotFilter
+      Options:
+        Projection:
+          build_id: 1
+          test_id: 1
+          seq: 1
+        Hint: build_id_1_test_id_1_seq_1
+        Comment: "Hot Covered Query"
+  - &RandomBuildIDQuery
+    OperationName: findOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *RandomBuildIDFilter
+      Options:
+        Hint: build_id_1_started_1
+        Comment: "Random BuildID Query"
+  - &RandomBuildIDStartedQuery
+    OperationName: findOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *RandomBuildIDStartedFilter
+      Options:
+        Hint: build_id_1_started_1
+        Comment: "Random BuildID Started Query"
+  - &RandomStartedQuery
+    OperationName: findOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *RandomStartedFilter
+      Options:
+        Hint: build_id_1_started_1
+        Comment: "Random Started Query"
+
+Updates:
+  - &UpdateRandomStarted
+    OperationName: updateOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *RandomStartedFilter
+      Update: {$inc: {seq: 1}}
+      OperationOptions:
+        Hint: build_id_1_started_1
+        Comment: "Update Random Started"
+  - &UpdateHotBuildID
+    OperationName: updateOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *HotFilter
+      Update: {$inc: {seq: 1}}
+      OperationOptions:
+        Hint: build_id_1_started_1
+        Comment: "Update Random BuildID"
+  - &UpdateRandomBuildID
+    OperationName: updateOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *RandomBuildIDFilter
+      Update: {$inc: {seq: 1}}
+      OperationOptions:
+        Hint: build_id_1_started_1
+        Comment: "Update Random BuildID"
+  - &UpdateRandomBuildIDStarted
+    OperationName: updateOne
+    OperationCommand:
+      ThrowOnFailure: false
+      Filter: *RandomBuildIDStartedFilter
+      Update: {$inc: {seq: 1}}
+      OperationOptions:
+        Hint: build_id_1_started_1
+        Comment: "Update Random BuildID Started"
+
+Inserts:
+  - &Insert
+    OperationName: insertOne
+    OperationCommand:
+      Document: *Doc
+
+Deletes:
+  - &Delete
+    OperationName: deleteOne
+    OperationCommand:
+      Filter: *Seq1Filter
+      # Filter: *RandomBuildIDFilter
+      OperationOptions:
+        Hint: seq_1_started_1
+        Comment: "Delete One"
+
+Clients:
+  Default:
+    QueryOptions:
+      maxPoolSize: 1000
+
+ActorTemplates:
+
+  - TemplateName: LogAMessage
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "LogMessage"}}
+      Type: AdminCommand
+      Threads:  1
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [0]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            Database: admin
+            Operations:
+              - OperationMetricsName: LogMessage
+                OperationName: AdminCommand
+                OperationCommand:
+                  ping: 1
+                  message:  {^Parameter: {Name: "Message", Default: "Log A Message" }}
+
+  - TemplateName: EnableShardingTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+      Type: AdminCommand
+      Threads:  1
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [0]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            Database: admin
+            Operations:
+              - OperationMetricsName: EnableShardingMetrics
+                OperationName: AdminCommand
+                OperationCommand:
+                  # ThrowOnFailure: false
+                  ping: 1
+                  message: dummy Enable Shard
+
+#  - TemplateName: EnableShardingTemplate
+#    Config:
+#      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+#      Type: AdminCommand
+#      Threads:  1
+#      Phases:
+#        OnlyActiveInPhases:
+#          Active: {^Parameter: {Name: "Active", Default: [0]}}
+#          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+#          PhaseConfig:
+#            Repeat: 1
+#            Database: admin
+#            Operations:
+#              - OperationMetricsName: EnableShardingMetrics
+#                OperationName: AdminCommand
+#                OperationCommand:
+#                  # ThrowOnFailure: false
+#                  enableSharding: {^Parameter: {Name: "Database", Default: *Database }}
+
+  - TemplateName: ShardCollectionTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+      Type: AdminCommand
+      Threads:  1
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            SleepBefore: 5 seconds
+            SleepAfter: 5 seconds
+            Database: admin
+            Operations:
+              - OperationMetricsName: ShardCollectionMetrics
+                OperationName: AdminCommand
+                OperationCommand:
+                  # ThrowOnFailure: false
+                  ping: 1
+                  message: shard Collection
+
+#  - TemplateName: ShardCollectionTemplate
+#    Config:
+#      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+#      Type: AdminCommand
+#      Threads:  1
+#      Phases:
+#        OnlyActiveInPhases:
+#          Active: {^Parameter: {Name: "Active", Default: [3]}}
+#          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+#          PhaseConfig:
+#            Repeat: 1
+#            Database: admin
+#            Operations:
+#              - OperationMetricsName: ShardCollectionMetrics
+#                OperationName: AdminCommand
+#                OperationCommand:
+#                  # ThrowOnFailure: false
+#                  shardCollection: {^Parameter: {Name: "shardCollection", Default: *Namespace }}
+#                  key: {^Parameter: {Name: "key", Default: *ShardKey }}
+
+  - TemplateName: SetChunkSizeTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+      Type: CrudActor
+      Threads:  1
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [0]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            Database: config
+            Collection: settings
+            Operations:
+              - OperationMetricsName: SetChunkSizeMetrics
+                OperationName: updateOne
+                OperationCommand:
+                  # ThrowOnFailure: false
+                  enableSharding: {^Parameter: {Name: "Database", Default: *Database }}
+                  Filter: {_id: 'chunksize'}
+                  Update: {$set: {value: {^Parameter: {Name: "Chunksize", Default: *Chunksize }}}}
+                  OperationOptions:
+                    Upsert: true
+
+  - TemplateName: Insert.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Insert.Baseline"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *InsertGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Duration: {^Parameter: {Name: "Duration", Default: *Duration}}
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Insert.Before"}}
+            Operations: &InsertOperations
+              - *Insert
+
+  - TemplateName: Insert.NonBlocking.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Insert.NonBlocking"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *InsertGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Blocking: None
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Insert.During"}}
+            Operations: *InsertOperations
+
+  - TemplateName: Query.RandomBuildID.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.RandomBuildID.Baseline"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Duration: {^Parameter: {Name: "Duration", Default: *Duration}}
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.Before"}}
+            Operations: &QueryOperations
+              # - *RandomBuildIDQuery
+              - *HotQuery
+
+  - TemplateName: Query.RandomBuildID.NonBlocking.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.RandomBuildID.NonBlocking"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Blocking: None
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.During"}}
+            Operations: *QueryOperations
+
+  - TemplateName: Query.RandomBuildIDStarted.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.RandomBuildIDStarted.Baseline"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Duration: {^Parameter: {Name: "Duration", Default: *Duration}}
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.Before"}}
+            Operations: &QueryOperations_RandomBuildIDStarted
+              # - *RandomBuildIDStartedQuery
+              - *HotQuery
+
+  - TemplateName: Query.RandomBuildIDStarted.NonBlocking.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.RandomBuildIDStarted.NonBlocking"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Blocking: None
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.During"}}
+            Operations: *QueryOperations_RandomBuildIDStarted
+
+  - TemplateName: Query.HotQuery.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.HotQuery.Baseline"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Duration: {^Parameter: {Name: "Duration", Default: *Duration}}
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.Before"}}
+            Operations: &QueryOperations_HotQuery
+              - *HotQuery
+
+  - TemplateName: Query.HotQuery.NonBlocking.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.HotQuery.NonBlocking"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Blocking: None
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.During"}}
+            Operations: *QueryOperations_HotQuery
+
+  - TemplateName: Query.HotCoveredQuery.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.HotCoveredQuery.Baseline"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Duration: {^Parameter: {Name: "Duration", Default: *Duration}}
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.Before"}}
+            Operations: &QueryOperations_HotCoveredQuery
+              - *HotCoveredQuery
+
+  - TemplateName: Query.HotCoveredQuery.NonBlocking.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Query.HotCoveredQuery.NonBlocking"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *QueryGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Blocking: None
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Query.During"}}
+            Operations: *QueryOperations_HotCoveredQuery
+
+  - TemplateName: Update.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Update.Baseline"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *UpdateGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Duration: {^Parameter: {Name: "Duration", Default: *Duration}}
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Update.Before"}}
+            Operations: &UpdateOperations
+              - *UpdateHotBuildID
+              # - *UpdateRandomBuildID
+              #- *UpdateRandomStarted
+              #- *UpdateRandomBuildIDStarted
+
+  - TemplateName: Update.NonBlocking.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Update.NonBlocking"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *UpdateGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Blocking: None
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Update.During"}}
+            Operations: *UpdateOperations
+
+  - TemplateName: Delete.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Delete.Baseline"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [1]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *DeleteGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Duration: {^Parameter: {Name: "Duration", Default: *Duration}}
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Delete.Before"}}
+            Operations: &DeleteOperations
+              - *Delete
+
+  - TemplateName: Delete.NonBlocking.WorkLoadTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "Delete.NonBlocking"}}
+      Type: CrudActor
+      Threads:  *ThreadsValue
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [3]}}
+          NopInPhasesUpTo:  {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *DeleteGlobalRateValue }}
+            Threads: *ThreadsValue
+            Database: {^Parameter: {Name: "Database", Default: *Database}}
+            Collection: {^Parameter: {Name: "Collection", Default: *Collection}}
+            Blocking: None
+            MetricsName: {^Parameter: {Name: "MetricsName", Default: "Delete.During"}}
+            Operations: *DeleteOperations
+
+  - TemplateName: QuiesceTemplate
+    Config:
+      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
+      Type: RunCommand
+      Threads:  1
+      Phases:
+        OnlyActiveInPhases:
+          Active: {^Parameter: {Name: "Active", Default: [2]}}
+          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
+          PhaseConfig:
+            Repeat: 1
+            SleepBefore: 5 seconds
+            SleepAfter: 5 seconds
+            Database: admin
+            Operations:
+              # Fsync to force a checkpoint and quiesce the system.
+              - OperationMetricsName: FsyncCommand
+                OperationName: AdminCommand
+                OperationCommand:
+                  fsync: 1
+
+
+Actors:
+# Phase 0 is set up / configuration / warmup.
+# Odd number phases Quiesce and pause. Look for fsync in t2 to find the phases.
+# Even number phases are work.
+
+## Quiesce And insert a delay (for visibility) between the significant phases
+- ActorFromTemplate:
+    TemplateName: QuiesceTemplate
+    TemplateParameters:
+      Active: [1, 3, 5, 7]
+
+# Setup and Warmup
+## Set the chunksize (64 MB is the default)
+- ActorFromTemplate:
+    TemplateName: LogAMessage
+    TemplateParameters:
+      Active: [0]
+      Message: Setup Phases
+
+- ActorFromTemplate:
+    TemplateName: SetChunkSizeTemplate
+    TemplateParameters:
+      Active: [0]
+      Chunksize: 64
+
+## Enable Sharding for the database
+- ActorFromTemplate:
+    TemplateName: EnableShardingTemplate
+    TemplateParameters:
+      Active: [0]
+
+## Insert warmup phase.
+- ActorFromTemplate:
+    TemplateName: Insert.WorkLoadTemplate
+    TemplateParameters:
+      Active: [0]
+      MetricsName: Insert.Warmup
+      Duration: *WarmupDuration
+
+## Query warmup phase.
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildID.WorkLoadTemplate
+    TemplateParameters:
+      Active: [0]
+      MetricsName: Query.RandomBuildID.Warmup
+      Duration: *WarmupDuration
+
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildIDStarted.WorkLoadTemplate
+    TemplateParameters:
+      Active: [0]
+      MetricsName: Query.RandomBuildIDStarted.Warmup
+      Duration: *WarmupDuration
+
+- ActorFromTemplate:
+    TemplateName: Query.HotQuery.WorkLoadTemplate
+    TemplateParameters:
+      Active: [0]
+      MetricsName: Query.HotQuery.Warmup
+      Duration: *WarmupDuration
+
+- ActorFromTemplate:
+    TemplateName: Query.HotCoveredQuery.WorkLoadTemplate
+    TemplateParameters:
+      Active: [0]
+      MetricsName: Query.HotCoveredQuery.Warmup
+      Duration: *WarmupDuration
+
+## Update warmup phase.
+- ActorFromTemplate:
+    TemplateName: Update.WorkLoadTemplate
+    TemplateParameters:
+      Active: [0]
+      MetricsName: Update.Warmup
+      Duration: *WarmupDuration
+
+## Delete warmup phase.
+- ActorFromTemplate:
+    TemplateName: Delete.WorkLoadTemplate
+    TemplateParameters:
+      Active: [0]
+      MetricsName: Delete.Warmup
+      Duration: *WarmupDuration
+
+# Run Baseline WorkLoad in phase 2
+- ActorFromTemplate:
+    TemplateName: LogAMessage
+    TemplateParameters:
+      Active: [2]
+      Message: Baseline Phase
+
+- ActorFromTemplate:
+    TemplateName: Insert.WorkLoadTemplate
+    TemplateParameters:
+      Active: [2]
+
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildID.WorkLoadTemplate
+    TemplateParameters:
+      Active: [2]
+
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildIDStarted.WorkLoadTemplate
+    TemplateParameters:
+      Active: [2]
+
+- ActorFromTemplate:
+    TemplateName: Query.HotQuery.WorkLoadTemplate
+    TemplateParameters:
+      Active: [2]
+
+- ActorFromTemplate:
+    TemplateName: Query.HotCoveredQuery.WorkLoadTemplate
+    TemplateParameters:
+      Active: [2]
+
+- ActorFromTemplate:
+    TemplateName: Update.WorkLoadTemplate
+    TemplateParameters:
+      Active: [2]
+
+- ActorFromTemplate:
+    TemplateName: Delete.WorkLoadTemplate
+    TemplateParameters:
+      Active: [2]
+
+## Run WorkLoad + shard collection in phase 4
+- ActorFromTemplate:
+    TemplateName: LogAMessage
+    TemplateParameters:
+      Active: [4]
+      Message: ShardCollection and Non Block Workload Phase
+
+- ActorFromTemplate:
+    TemplateName: ShardCollectionTemplate
+    TemplateParameters:
+      Active: [4]
+
+# Run NonBlock WorkLoad while the shardCollection command is processing.
+## Insert
+- ActorFromTemplate:
+    TemplateName: Insert.NonBlocking.WorkLoadTemplate
+    TemplateParameters:
+      Active: [4]
+
+## Query
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildID.NonBlocking.WorkLoadTemplate
+    TemplateParameters:
+      Active: [4]
+
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildIDStarted.NonBlocking.WorkLoadTemplate
+    TemplateParameters:
+      Active: [4]
+
+- ActorFromTemplate:
+    TemplateName: Query.HotQuery.NonBlocking.WorkLoadTemplate
+    TemplateParameters:
+      Active: [4]
+
+- ActorFromTemplate:
+    TemplateName: Query.HotCoveredQuery.NonBlocking.WorkLoadTemplate
+    TemplateParameters:
+      Active: [4]
+
+## Update
+- ActorFromTemplate:
+    TemplateName: Update.NonBlocking.WorkLoadTemplate
+    TemplateParameters:
+      Active: [4]
+
+## Delete
+- ActorFromTemplate:
+    TemplateName: Delete.NonBlocking.WorkLoadTemplate
+    TemplateParameters:
+      Active: [4]
+
+
+# Run A fixed Duration blocking WorkLoad after the shardCollection.
+- ActorFromTemplate:
+    TemplateName: LogAMessage
+    TemplateParameters:
+      Active: [6]
+      Message: Post Sharding Workload Phase
+
+## Insert
+- ActorFromTemplate:
+    TemplateName: Insert.WorkLoadTemplate
+    TemplateParameters:
+      Active: [6]
+      MetricsName: Insert.After
+
+## Query
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildID.WorkLoadTemplate
+    TemplateParameters:
+      Active: [6]
+      MetricsName: Query.RandomBuildID.After
+
+- ActorFromTemplate:
+    TemplateName: Query.RandomBuildIDStarted.WorkLoadTemplate
+    TemplateParameters:
+      Active: [6]
+      MetricsName: Query.RandomBuildIDStarted.After
+
+- ActorFromTemplate:
+    TemplateName: Query.HotQuery.WorkLoadTemplate
+    TemplateParameters:
+      Active: [6]
+      MetricsName: Query.HotQuery.After
+
+- ActorFromTemplate:
+    TemplateName: Query.HotCoveredQuery.WorkLoadTemplate
+    TemplateParameters:
+      Active: [6]
+      MetricsName: Query.HotCoveredQuery.After
+
+## Update
+- ActorFromTemplate:
+    TemplateName: Update.WorkLoadTemplate
+    TemplateParameters:
+      Active: [6]
+      MetricsName: Update.After
+
+## Delete
+- ActorFromTemplate:
+    TemplateName: Delete.WorkLoadTemplate
+    TemplateParameters:
+      Active: [6]
+      MetricsName: Delete.After
+
+#Params so no AutoRun.
+#AutoRun:
+#  - When:
+#      mongodb_setup:
+#        $eq:
+#          - shard-single-stress
