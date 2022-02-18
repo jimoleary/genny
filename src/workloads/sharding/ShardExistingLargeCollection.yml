@@ -1,22 +1,207 @@
 SchemaVersion: 2018-07-01
-Owner: "@mongodb/sharding"
+Owner: "@mongodb/product-perf"
 Description: |
-  Runs the shardCollection command on an existing large collection.
+  This is a workload to generate docs similar to coinbase's.
 
-  The workload consists of 2 phases:
-     1. Set the chunk size.
-     2. Enable Sharding
-     3. Shard the collection.
+    {
+      "_id": {
+        "$oid": "5949b35db6fbc700132543d5" //important
+      },
+      "amount": {
+        "$numberLong": "39942774862"
+      },
+      "account_id": {
+        "$oid": "some_object_id"  //important
+      },
+      "hot": false,
+      "confirmed": true,
+      "exclude_from_taxes": false,
+      "transaction_id": {
+        "$oid": "some_object_id"  //important
 
-  The collection is sharded on {build_id: 1, started: 1}.
+      },
+      "pool": {
+        "$numberInt": "8"
+      },
+      "created_at": {
+        "$date": {
+          "$numberLong": "1498002269961"
+        }
+      },
+      "currency": "LTC",
+      "amount_usd": {
+        "cents": {
+          "$numberDouble": "889126.0"
+        },
+        "currency_iso": "USD"
+      },
+      "cost_price_native": {
+        "cents": {
+          "$numberDouble": "3092.0"
+        },
+        "currency_iso": "SGD"
+      },
+      "amount_native": {
+        "cents": {
+          "$numberDouble": "1235030.59873304"
+        },
+        "currency_iso": "SGD"
+      },
+      "updated_at": {
+        "$date": {
+          "$numberLong": "1627308960191"  //important
 
-GlobalDefaults:
+        }
+      },
+      "uuid": {
+        "$binary": {
+          "base64": "OmoSuEiYVRqKEeQMekjNOA==",  //important
 
-  Database: &Database Coinbase
-  Namespace: &Namespace Coinbase.Collection0
-  ShardKey: &ShardKey {user_uuid: 1}
-  Chunksize: &Chunksize 64
-  MaxPhases: &MaxPhases 1
+          "subType": "03"
+        }
+      },
+      "cache": {  //important
+        "category": "tx",
+        "notes": null,
+        "idem": null,
+        "hsh": null,
+        "block_status": "off blockchain",
+        "fiat": false,
+        "status": "completed",
+        "multisig": null,
+        "created_at": "2017-06-20T16:44:29-07:00",
+        "updated_at": "2017-06-20T16:44:29-07:00",
+        "sent_to_crypto_address": false,
+        "recipient_account_id": {
+          "$oid": "some_object_id"
+        },
+        "recipient_account_user_id": {
+          "$oid": "some_object_id"
+        },
+        "recipient_user_id": {
+          "$oid": "some_object_id"
+        },
+        "sender_account_id": null,
+        "sender_account_user_id": null,
+        "application_id": null,
+        "instant_exchange": false,
+        "other_user": {
+          "id": null,
+          "name": "an external account",
+          "avatar_url": null
+        }
+      },
+      "available_balance": {
+        "$numberLong": "98990533153"  //important updated a lot
+
+      },
+      "cache_build_at": {
+        "$date": {
+          "$numberLong": "1498002270062"  //important
+        }
+      },
+      "amount_money": {
+        "cents": {
+          "$numberDouble": "3.9942774862000E+10"
+        },
+        "currency_iso": "LTC"
+      },
+      "available_balance_money": {
+        "cents": {
+          "$numberDouble": "9.8990533153000E+10"
+        },
+        "currency_iso": "LTC"
+      },
+      "user_uuid": {
+        "$binary": {
+          "base64": "xgRblatrUAWQ3Qzcjt9M5g==",  //important this is the shard key
+          "subType": "03"
+        }
+      }
+    }
+
+Parameters:
+  - &WarmupDuration 10 minutes
+  - &PreShardDuration 15 minutes
+  - &PostShardDuration 15 minutes
+  - &Database Coinbase
+  - &Chunksize 64
+
+Constants:
+  - &MaxPhases 3
+
+Useful_templates:
+  - &RandomOID {^ObjectId: {^RandomString: {length: 24, alphabet: "0123456789ABCDEF"}}}
+  - &RandomDate {^RandomDate: {min: "2015-01-01", max: "2023-01-01"}}
+  - &RandomStringDate
+    ^FormatString:
+      format: "%04d-%02d-%02dT%02d:%02d:%02d-00:00"
+      withArgs:
+        - {^RandomInt: {min: 2015, max: 2023}}
+        - {^RandomInt: {min: 1, max: 12}}
+        - {^RandomInt: {min: 1, max: 31}}
+        - {^RandomInt: {min: 0, max: 23}}
+        - {^RandomInt: {min: 0, max: 59}}
+        - {^RandomInt: {min: 0, max: 59}}
+  - &LargeRandomInt {^RandomInt: {min: 0, max: 39942774862000}}
+  - &TrueFalse {^Choose: {from: [true, false]}}
+  # Currencies pulled from the sample and Coinbase's first page listing of currencies.
+  - &Currencies [LTC, USD, SGD, BTC, ETH, ETH2, USDT, BNB, USDC, XRP, ADA, SOL, LUNA, AVAX, DOGE, DOT, BUSD, SHIB, MATIC, CRO, UST, WBTC, DAI, ATOM, LINK, NEAR, UNI, TRX,  BCH, ALGO, FFT, LEO]
+  # tx is from the sample document. The rest are invented
+  - &categories [tx, mx, px, rx, sa, vf, gh]
+  - &RandomStringOrNull {^Choose: {from: [null, {^FastRandomString: {length: {^RandomInt: {min: 4, max: 32}}}}]}}
+  - &RandomOIDOrNull {^Choose: {from: [null, *RandomOID]}}
+  - &statuses ["not started", "started", "completed", "failed"]
+  - &NumChunks 1000
+
+Useful_Query_related:
+  - &RandomObjectIDComparison
+    "$gte": *RandomOID
+  - &RandomAccountID
+    OperationName: findOne
+    OperationCommand:
+      Filter:
+        acount_id: *RandomObjectIDComparison
+      Options:
+        Sort:
+          acount_id: -1  # Should this be 1 or -1?
+  - &RandomUUID
+    OperationName: findOne
+    OperationCommand:
+      Filter:
+        uuid: *RandomObjectIDComparison
+      Options:
+        Sort:
+          uuid: -1  # Should this be 1 or -1?
+  - &RandomUserID
+    OperationName: findOne
+    OperationCommand:
+      Filter:
+        user_uuid: *RandomObjectIDComparison
+      Options:
+        Sort:
+          user_uuid: -1  # Should this be 1 or -1?
+  - &RandomTransactionID
+    OperationName: findOne
+    OperationCommand:
+      Filter:
+        transaction_id: *RandomObjectIDComparison
+      Options:
+        Sort:
+          transaction_id: -1  # Should this be 1 or -1?
+
+
+Updates:
+  - &UpdateOnUUID
+    OperationName: updateOne
+    OperationCommand:
+      Filter:
+        uuid: *RandomObjectIDComparison
+      Update:
+        $currentDate: {updated_at: true}
+
+Keywords:
+  - coinbase
 
 Clients:
   Default:
@@ -29,105 +214,264 @@ Clients:
       maxPoolSize: 1
       socketTimeoutMS: 36_000_000  # = 10 hours
 
-ActorTemplates:
-  - TemplateName: SetChunkSizeTemplate
-    Config:
-      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
-      Type: CrudActor
-      Threads:  1
-      Phases:
-        OnlyActiveInPhases:
-          Active: {^Parameter: {Name: "Active", Default: [0]}}
-          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
-          PhaseConfig:
-            Repeat: 1
-            Database: config
-            Collection: settings
-            Operations:
-              - OperationMetricsName: SetChunkSizeMetrics
-                OperationName: updateOne
-                OperationCommand:
-                  # ThrowOnFailure: false
-                  enableSharding: {^Parameter: {Name: "Database", Default: *Database }}
-                  Filter: {_id: 'chunksize'}
-                  Update: {$set: {value: {^Parameter: {Name: "Chunksize", Default: *Chunksize }}}}
-                  OperationOptions:
-                    Upsert: true
-
-  - TemplateName: EnableShardingTemplate
-    Config:
-      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
-      Type: AdminCommand
-      Threads:  1
-      Phases:
-        OnlyActiveInPhases:
-          Active: {^Parameter: {Name: "Active", Default: [0]}}
-          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
-          PhaseConfig:
-            Repeat: 1
-            Database: admin
-            Operations:
-              - OperationMetricsName: EnableShardingMetrics
-                OperationName: AdminCommand
-                OperationCommand:
-                  # ThrowOnFailure: false
-                  enableSharding: {^Parameter: {Name: "Database", Default: *Database }}
-
-  - TemplateName: ShardCollectionTemplate
-    Config:
-      Name: {^Parameter: {Name: "Name", Default: "EnableSharding"}}
-      Type: AdminCommand
-      Threads:  1
-      ClientName: ShardCollection
-      Phases:
-        OnlyActiveInPhases:
-          Active: {^Parameter: {Name: "Active", Default: [1]}}
-          NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *MaxPhases }}
-          PhaseConfig:
-            Repeat: 1
-            Database: admin
-            Operations:
-              - OperationMetricsName: ShardCollectionMetrics
-                OperationName: AdminCommand
-                OperationCommand:
-                  # ThrowOnFailure: false
-                  shardCollection: {^Parameter: {Name: "shardCollection", Default: *Namespace }}
-                  key: {^Parameter: {Name: "key", Default: *ShardKey }}
-
 Actors:
-  ## Set the chunk size.
-  - ActorFromTemplate:
-      TemplateName: SetChunkSizeTemplate
-      TemplateParameters:
+
+  - Name: SetChunkSizeMetrics
+    Type: CrudActor
+    Threads: 1
+    Phases:
+      OnlyActiveInPhases:
         Active: [0]
-        Chunksize: 64
+        NopInPhasesUpTo: *MaxPhases
+        PhaseConfig:
+          Repeat: 1
+          Database: config
+          Collection: settings
+          Operations:
+            - OperationMetricsName: SetChunkSizeMetrics
+              OperationName: updateOne
+              OperationCommand:
+                # ThrowOnFailure: false
+                enableSharding: *Database
+                Filter: {_id: 'chunksize'}
+                Update: {$set: {value: *Chunksize}}
+                OperationOptions:
+                  Upsert: true
 
-  ## Enable Sharding for the Database.
-  - ActorFromTemplate:
-      TemplateName: EnableShardingTemplate
-      TemplateParameters:
+  - Name: ShardDatabase
+    Type: AdminCommand
+    Threads: 1
+    Phases:
+      OnlyActiveInPhases:
         Active: [0]
+        NopInPhasesUpTo: *MaxPhases
+        PhaseConfig:
+          Repeat: 1
+          Database: admin
+          Operations:
+            - OperationMetricsName: EnableSharding
+              OperationName: AdminCommand
+              OperationCommand:
+                enableSharding: *Database
 
-  - ActorFromTemplate:
-      TemplateName: ShardCollectionTemplate
-      TemplateParameters:
-        Active: [1]
+  - Name: CreateShardedCollection
+    Type: AdminCommand
+    ClientName: ShardCollection
+    Threads: 1
+    Phases:
+      OnlyActiveInPhases:
+        Active: [2]
+        NopInPhasesUpTo: *MaxPhases
+        PhaseConfig:
+          Repeat: 1
+          Database: admin
+          Operations:
+            - OperationMetricsName: ShardCollection
+              OperationName: AdminCommand
+              OperationCommand:
+                shardCollection: &Collection Coinbase.Collection0
+                key: {user_uuid: 1}
 
-  # Guard Against timeout for no output.
+  - Name: InsertDocs
+    Type: CrudActor
+    Database: Coinbase
+    Threads: 10
+    Phases:
+      - Duration: *WarmupDuration
+        GlobalRate: 1 per 10 milliseconds
+        MetricsName: InsertWarmup
+        Collection: Collection0
+        Operations: &insertops
+          - OperationName: insertOne
+            OperationCommand:
+              Document:
+                amount: *LargeRandomInt
+                acount_id: *RandomOID  # Note typo here. There should be an extra c
+                hot: *TrueFalse
+                confirmed: *TrueFalse
+                exclude_from_taxes: *TrueFalse
+                transaction_id: *RandomOID
+                pool: {^RandomInt: {min: 0, max: 32}}
+                createdAt: *RandomDate
+                amount_usd:
+                  cents: {^RandomDouble: {min: 0, max: 100000000}}
+                  currency_iso: USD
+                cost_price_native:
+                  cents: {^RandomDouble: {min: 0, max: 100000000}}
+                  currency_iso: {^Choose: {from: *Currencies}}
+                updated_at: *RandomDate
+                uuid: *RandomOID  # This should be a UUID type 3. ObjectID is slightly bigger
+                cache:
+                  category: {^Choose: {from: *categories}}
+                  notes: *RandomStringOrNull
+                  idem: *RandomStringOrNull
+                  hsh: *RandomStringOrNull
+                  block_status: {^Choose: {from: ["off blockchain", "on blockchain"]}}
+                  fiat: *TrueFalse
+                  status: {^Choose: {from: *statuses}}
+                  multisig: *RandomStringOrNull
+                  created_at: *RandomStringDate
+                  updated_at: *RandomStringDate
+                  sent_to_crypto_address: *TrueFalse
+                  recipient_account_id: *RandomOID
+                  recipient_account_user_id: *RandomOID
+                  sender_account_id: *RandomOIDOrNull
+                  sender_account_user_id: *RandomOIDOrNull
+                  application_id: *RandomStringOrNull
+                  instant_exchange: *TrueFalse
+                  other_user:
+                    id: *RandomOIDOrNull
+                    name: {^FastRandomString: {length: {^RandomInt: {min: 4, max: 12}}}}
+                    avatar_url: null
+                available_balance: *LargeRandomInt
+                cache_build_at: *RandomDate
+                available_balance_money:
+                  cents: *LargeRandomInt
+                  currency_iso: {^Choose: {from: *Currencies}}
+                user_uuid: *RandomOID  # This should be a UUID type 3.
+      - Duration: *PreShardDuration
+        MetricsName: InsertPreSharing
+        GlobalRate: 1 per 10 milliseconds
+        Collection: Collection0
+        Operations: *insertops
+      - Blocking: None
+        MetricsName: InsertDuringShard
+        GlobalRate: 1 per 10 milliseconds
+        Collection: Collection0
+        Operations: *insertops
+      - Duration: *PostShardDuration
+        MetricsName: InsertAfterSharding
+        GlobalRate: 1 per 10 milliseconds
+        Collection: Collection0
+        Operations: *insertops
+
+  - Name: QueryUUID
+    Type: CrudActor
+    Database: Coinbase
+    Threads: 10
+    Phases:
+      - Duration: *WarmupDuration
+        MetricsName: QueryUUIDWarmup
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUUID
+      - Duration: *PreShardDuration
+        MetricsName: QueryUUIDBeforeSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUUID
+      - Blocking: None
+        MetricsName: QueryUUIDDuringSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUUID
+      - Duration: *PostShardDuration
+        MetricsName: QueryUUIDAfterSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUUID
+
+  - Name: QueryUserID
+    Type: CrudActor
+    Database: Coinbase
+    Threads: 10
+    Phases:
+      - Duration: *WarmupDuration
+        MetricsName: QueryUserIDWarmup
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUserID
+      - Duration: *PreShardDuration
+        MetricsName: QueryUserIDBeforeSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUserID
+      - Blocking: None
+        MetricsName: QueryUserIDDuringSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUserID
+      - Duration: *PostShardDuration
+        MetricsName: QueryUserIDAfterSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomUserID
+
+  - Name: QueryTransactionID
+    Type: CrudActor
+    Database: Coinbase
+    Threads: 10
+    Phases:
+      - Duration: *WarmupDuration
+        MetricsName: QueryTransactionIDWarmup
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomTransactionID
+      - Duration: *PreShardDuration
+        MetricsName: QueryTransactionIDBeforeSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomTransactionID
+      - Blocking: None
+        MetricsName: QueryTransactionIDDuringSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomTransactionID
+      - Duration: *PostShardDuration
+        MetricsName: QueryTransactionIDAfterSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *RandomTransactionID
+
+  - Name: Update
+    Type: CrudActor
+    Database: Coinbase
+    Threads: 10
+    Phases:
+      - Duration: *WarmupDuration
+        MetricsName: UpdateWarmup
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *UpdateOnUUID
+      - Duration: *PreShardDuration
+        MetricsName: UpdateBeforeSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *UpdateOnUUID
+      - Blocking: None
+        MetricsName: UpdateDuringSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *UpdateOnUUID
+      - Duration: *PostShardDuration
+        MetricsName: UpdateAfterSharding
+        GlobalRate: 5 per 10 millisecond
+        Collection: Collection0
+        Operations:
+          - *UpdateOnUUID
+
   - Name: LoggingActor
     Type: LoggingActor
     Threads: 1
     Phases:
       OnlyActiveInPhases:
-        Active: [1]
+        Active: [2]
         NopInPhasesUpTo: *MaxPhases
         PhaseConfig:
-          LogEvery: 15 minutes
+          LogEvery: 10 seconds
           Blocking: None
-
-# #Params so no AutoRun.
-# AutoRun:
-#   - When:
-#       mongodb_setup:
-#         $eq:
-#           - shard-single-stress
