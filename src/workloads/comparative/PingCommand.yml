@@ -14,7 +14,7 @@ Actors:
   Threads: 2
   Phases:
   - Duration: 30 seconds
-    Rate: 100 per 1 second
+    GlobalRate: 100 per 1 second
     Database: admin
     Operations:
       - OperationName: RunCommand
@@ -29,7 +29,7 @@ Actors:
   Phases:
   - {Nop: true}
   - Duration: 30 seconds
-    Rate: 1000 per 1 second
+    GlobalRate: 1000 per 1 second
     Database: admin
     Operations:
       - OperationName: RunCommand
