@@ -8,39 +8,34 @@ Clients:
     QueryOptions:
       maxPoolSize: 500
 
-MaxPhases: &MaxPhases 1
-ActorTemplates:
-- TemplateName: PingTemplate
-  Config:
-    Name: {^Parameter: {Name: "Name", Default: "TwoThreadPing"}}
-    Type: RunCommand
-    Threads: {^Parameter: {Name: "Threads", Default: 2}}
-    Phases:
-      OnlyActiveInPhases:
-        Active: {^Parameter: {Name: "Active", Default: [0]}}
-        NopInPhasesUpTo: *MaxPhases
-        PhaseConfig:
-          Duration: {^Parameter: {Name: "Duration", Default: "30 seconds"}}
-          #GlobalRate: {^Parameter: {Name: "Rate", Default: "100 per 1 second"}}
-          Database: admin
-          Operations:
-          - OperationName: RunCommand
-            OperationIsQuiet: true
-            OperationCommand:
-              ping: 1
-
 Actors:
-- ActorFromTemplate:
-    TemplateName: PingTemplate
-    TemplateParameters:
-      Name: TwoThreadsPingRateLimited
-- ActorFromTemplate:
-    TemplateName: PingTemplate
-    TemplateParameters:
-      Name: MultiThreadPingRateLimited
-      Threads: 64
-      #Rate: 1000 per 1 second
-      Active: [1]
+- Name: LowThreadsPingRateLimited
+  Type: RunCommand
+  Threads: 2
+  Phases:
+  - Duration: 30 seconds
+    Rate: 100 per 1 second
+    Database: admin
+    Operations:
+      - OperationName: RunCommand
+        OperationIsQuiet: true
+        OperationCommand:
+          ping: 1
+  - {Nop: true}
+
+- Name: HighThreadsPingRateLimited
+  Type: RunCommand
+  Threads: 64
+  Phases:
+  - {Nop: true}
+  - Duration: 30 seconds
+    Rate: 1000 per 1 second
+    Database: admin
+    Operations:
+      - OperationName: RunCommand
+        OperationIsQuiet: true
+        OperationCommand:
+          ping: 1
 
 AutoRun:
 - When:
