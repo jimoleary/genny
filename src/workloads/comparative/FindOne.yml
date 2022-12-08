@@ -1,0 +1,109 @@
+SchemaVersion: 2018-07-01
+Owner: "@mongodb/product-perf"
+Description: >
+  This is a simple test that runs a find on MongoDB to measure the latency of command dispatch.
+
+Clients:
+  Default:
+    QueryOptions:
+      maxPoolSize: 500
+
+WorkloadDefaults:
+  - &path ../../phases/comparative/Operations.yml
+  - &high_rate 1000 per 1 second
+  - &low_rate 200 per 1 second
+  - &min_threads 1
+  - &max_threads 16
+  - &filter { _id: 0 }
+
+
+Actors:
+  - LoadConfig:
+      Path: *path
+      Key: QuiesceActor
+  - LoadConfig:
+      Path: *path
+      Key: PopulateCollectionActor
+      Parameters:
+        Threads: 1
+        DocumentCount: 1
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [2]
+        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*min_threads, *low_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: FindOneActor
+      Parameters:
+        Name: LowThreadFindRateLimited
+        Active: [3]
+        Threads: *min_threads
+        GlobalRate: *low_rate
+        Comment: Find One Low Thread Low Rate
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [4]
+        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*min_threads, *high_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: FindOneActor
+      Parameters:
+        Name: LowThreadFindRateLimited
+        Active: [5]
+        GlobalRate: *high_rate
+        Filter: *filter
+        Comment: Find One Low Thread High Rate
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [6]
+        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*max_threads, *low_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: FindOneActor
+      Parameters:
+        Name: HighThreadFindRateLimited
+        Active: [7]
+        Threads: *max_threads
+        GlobalRate: *low_rate
+        Filter: *filter
+        Comment: Find One MultiThread Low Rate
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [8]
+        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*max_threads, *high_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: FindOneActor
+      Parameters:
+        Name: MultiThreadFind
+        Active: [9]
+        Threads: *max_threads
+        GlobalRate: *high_rate
+        Filter: *filter
+        Comment: Find One MultiThread High Rate
+
+AutoRun:
+- When:
+    mongodb_setup:
+      $eq:
+      - standalone
+      - standalone-classic-query-engine
+#      - replica
+#      - single-replica-classic-query-engine
+#      - single-replica-sbe
+#      - replica
+#      - replica-1dayhistory-15gbwtcache
+#      - replica-all-feature-flags
+#      - replica-maintenance-events
+#      - replica-noflowcontrol
+#      - single-replica
+#      - single-replica-classic-query-engine
+#      - single-replica-sbe
