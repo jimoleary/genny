@@ -1,0 +1,97 @@
+SchemaVersion: 2018-07-01
+Owner: "@mongodb/product-perf"
+Description: >
+  This is a simple test that runs a find on MongoDB to measure the latency of command dispatch.
+
+Clients:
+  Default:
+    QueryOptions:
+      maxPoolSize: 500
+
+WorkloadDefaults:
+  - &path ../../phases/comparative/Operations.yml
+  - &high_rate 5000 per 1 second # 1000 per 1 second
+  - &low_rate 2000 per 1 second # 200 per 1 second
+  - &min_threads 128 # 1
+  - &max_threads 128 # 16
+  - &filter { _id: 0 }
+
+
+Actors:
+  - LoadConfig:
+      Path: *path
+      Key: QuiesceActor
+  - LoadConfig:
+      Path: *path
+      Key: PopulateCollectionActor
+      Parameters:
+        Threads: 1
+        DocumentCount: 1
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [2]
+        Comment: {^FormatString: {format: "Starting Insert One Threads %d GlobalRate: '%s'", withArgs: [*min_threads, *low_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: InsertOneActor
+      Parameters:
+        Name: LowThreadFindRateLimited
+        Active: [3]
+        Threads: *min_threads
+        GlobalRate: *low_rate
+        Comment: Insert One Low Thread Low Rate
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [4]
+        Comment: {^FormatString: {format: "Starting Insert One Threads %d GlobalRate: '%s'", withArgs: [*min_threads, *high_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: InsertOneActor
+      Parameters:
+        Name: LowThreadFindRateLimited
+        Active: [5]
+        GlobalRate: *high_rate
+        Filter: *filter
+        Comment: Insert One Low Thread High Rate
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [6]
+        Comment: {^FormatString: {format: "Starting Insert One Threads %d GlobalRate: '%s'", withArgs: [*max_threads, *low_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: InsertOneActor
+      Parameters:
+        Name: HighThreadFindRateLimited
+        Active: [7]
+        Threads: *max_threads
+        GlobalRate: *low_rate
+        Filter: *filter
+        Comment: Insert One MultiThread Low Rate
+  - LoadConfig:
+      Path: *path
+      Key: HelloActor
+      Parameters:
+        Active: [8]
+        Comment: {^FormatString: {format: "Starting Insert One Threads %d GlobalRate: '%s'", withArgs: [*max_threads, *high_rate]} }
+  - LoadConfig:
+      Path: *path
+      Key: InsertOneActor
+      Parameters:
+        Name: MultiThreadFind
+        Active: [9]
+        Threads: *max_threads
+        GlobalRate: *high_rate
+        Filter: *filter
+        Comment: Find One MultiThread High Rate
+
+AutoRun:
+- When:
+    mongodb_setup:
+      $eq:
+      - standalone

@@ -18,6 +18,8 @@ GlobalDefaults:
   - &load_batch_size 1000
   - &insert_doc
     _id: {^Inc: {start: 0}}
+  - &insert_one_doc
+    id: {^Inc: {start: 0}}
 
 
 # Parameterized Populate Collection Actor
@@ -68,6 +70,37 @@ FindOneActor:
                     Comment: {^Parameter: {Name: "Comment", Default: "Find One"}}
 
 
+# Parameterized Find Actor
+InsertOneActor:
+  Name: {^Parameter: {Name: "Name", Default: "InsertOne"}}
+  Type: CrudActor
+  Threads: {^Parameter: {Name: "Threads", Default: *min_threads}}
+  Database: {^Parameter: {Name: "Database", Default: *db_name}}
+  ClientName: {^Parameter: {Name: "ClientName", Default: "Default"}}
+  Phases:
+    OnlyActiveInPhases:
+      Active: {^Parameter: {Name: "Active", Default: [3]}}
+      NopInPhasesUpTo: *max_phases
+      PhaseConfig:
+        GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *low_rate}}
+        Threads: {^Parameter: {Name: "Threads", Default: *min_threads}}
+        Database: *db_name
+        Collection: *coll_name
+        Duration: {^Parameter: {Name: "Duration", Default: *duration}}
+        Operations:
+          ^Parameter:
+            Name: Operations
+            Default:
+              - OperationName: insertOne
+                OperationCommand:
+                  Document: {^Parameter: {Name: "Document", Default: *insert_one_doc}}
+                  OperationOptions:
+                    WriteConcern:
+                      Level: majority
+                  Options:
+                    Comment: {^Parameter: {Name: "Comment", Default: "Insert One"}}
+
+
 # Parameterized Quiesce Actor
 QuiesceActor:
   Name: {^Parameter: {Name: "Name", Default: "FindOne"}}
@@ -102,4 +135,3 @@ HelloActor:
             OperationCommand:
               hello: 1
               comment: {^Parameter: {Name: "Comment", Default: "comment"}}
-
