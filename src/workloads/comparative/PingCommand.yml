@@ -8,38 +8,91 @@ Clients:
     QueryOptions:
       maxPoolSize: 500
 
-Actors:
-- Name: LowThreadsPingRateLimited
-  Type: RunCommand
-  Threads: 2
-  Phases:
-  - Duration: 30 seconds
-    GlobalRate: 100 per 1 second
-    Database: admin
-    Operations:
-      - OperationName: RunCommand
-        OperationIsQuiet: true
-        OperationCommand:
-          ping: 1
-  - {Nop: true}
+WorkloadDefaults:
+  - &path ../../phases/comparative/Operations.yml
+  - &low_rate 200 per 1 second
+  - &high_rate 1000 per 1 second
+  - &no_rate 100%
+  - &low_threads 2
+  - &high_threads 16
 
-- Name: HighThreadsPingRateLimited
-  Type: RunCommand
-  Threads: 64
-  Phases:
-  - {Nop: true}
-  - Duration: 30 seconds
-    GlobalRate: 1000 per 1 second
-    Database: admin
-    Operations:
-      - OperationName: RunCommand
-        OperationIsQuiet: true
-        OperationCommand:
-          ping: 1
+# Even Phases are Quiesce
+# Odd Phases are population (in phase 1) or test.
+Actors:
+  - LoadConfig:
+      Path: *path
+      Key: QuiesceActor
+  # Populate is not really required here but keeping for consistency
+  - LoadConfig:
+      Path: *path
+      Key: PopulateCollectionActor
+      Parameters:
+        Threads: 1
+        DocumentCount: 1
+  # Quiesce in phase [2]
+  - LoadConfig:
+      Path: *path
+      Key: PingActor
+      Parameters:
+        Name: PingLowThreadLowRate
+        Active: [3]
+        Threads: *low_threads
+        GlobalRate: *low_rate
+        Comment: Ping Low Thread Low Rate
+  # Quiesce in phase [4]
+  - LoadConfig:
+      Path: *path
+      Key: PingActor
+      Parameters:
+        Name: PingLowThreadHighRate
+        Active: [5]
+        Threads: *low_threads
+        GlobalRate: *high_rate
+        Comment: Ping Low Thread High Rate
+  # Quiesce in phase [6]
+  - LoadConfig:
+      Path: *path
+      Key: PingActor
+      Parameters:
+        Name: PingLowThreadNoRate
+        Active: [7]
+        Threads: *low_threads
+        GlobalRate: *no_rate
+        Comment: Ping Low Thread No Rate
+  # Quiesce in phase [8]
+  - LoadConfig:
+      Path: *path
+      Key: PingActor
+      Parameters:
+        Name: PingHighThreadLowRate
+        Active: [9]
+        Threads: *high_threads
+        GlobalRate: *low_rate
+        Comment: Ping High Thread Low Rate
+  # Quiesce in phase [10]
+  - LoadConfig:
+      Path: *path
+      Key: PingActor
+      Parameters:
+        Name: PingHighThreadHighRate
+        Active: [11]
+        Threads: *high_threads
+        GlobalRate: *high_rate
+        Comment: Ping High Thread High Rate
+  # Quiesce in phase [12]
+  - LoadConfig:
+      Path: *path
+      Key: PingActor
+      Parameters:
+        Name: PingHighThreadNoRate
+        Active: [13]
+        Threads: *high_threads
+        GlobalRate: *no_rate
+        Comment: Ping High Thread No Rate
+  # Quiesce in phase [14]
 
 AutoRun:
-- When:
-    mongodb_setup:
-      $eq:
-      - standalone
-      - standalone-classic-query-engine
+  - When:
+      mongodb_setup:
+        $eq:
+          - replica

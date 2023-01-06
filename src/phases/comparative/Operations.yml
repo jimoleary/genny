@@ -1,16 +1,17 @@
 SchemaVersion: 2018-07-01
-Owner: "@10gen/server-security"
+Owner: "@mongodb/product-perf"
 Description: |
   Phase definitions for comparative workloads.
 
 GlobalDefaults:
   - &load_threads 16
-  - &max_phases 10
-  - &high_rate 1000 per 1 second
+  - &max_phases 14
   - &low_rate 200 per 1 second
-  - &min_threads 2
-  - &max_threads 16
-  - &duration 30 seconds
+  - &high_rate 1000 per 1 second
+  - &no_rate 100%
+  - &low_threads 2
+  - &high_threads 16
+  - &duration 180 seconds
   - &db_name test
   - &coll_name Collection0
   - &num_docs 1_000_000
@@ -20,6 +21,9 @@ GlobalDefaults:
     _id: {^Inc: {start: 0}}
   - &insert_one_doc
     id: {^Inc: {start: 0}}
+  - &update_one_doc
+    $set:
+      ts: {^Now: {}}
 
 
 # Parameterized Populate Collection Actor
@@ -42,39 +46,41 @@ PopulateCollectionActor:
         DocumentCount: {^Parameter: {Name: "DocumentCount", Default: *num_docs}}
         BatchSize: {^Parameter: {Name: "BatchSize", Default: *load_batch_size}}
 
-# Parameterized Find Actor
-FindOneActor:
-  Name: {^Parameter: {Name: "Name", Default: "FindOne"}}
-  Type: CrudActor
-  Threads: {^Parameter: {Name: "Threads", Default: *min_threads}}
+
+#
+# Actors
+#
+# Parameterized Ping Actor
+#
+PingActor:
+  Name: {^Parameter: {Name: "Name", Default: "PingCommand"}}
+  Type: RunCommand
+  Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
   Database: {^Parameter: {Name: "Database", Default: *db_name}}
   ClientName: {^Parameter: {Name: "ClientName", Default: "Default"}}
   Phases:
     OnlyActiveInPhases:
-      Active: {^Parameter: {Name: "Active", Default: [3]}}
+      Active: {^Parameter: {Name: "Active", Default: [1]}}
       NopInPhasesUpTo: *max_phases
       PhaseConfig:
         GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *low_rate}}
-        Threads: {^Parameter: {Name: "Threads", Default: *min_threads}}
+        Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
         Database: *db_name
         Collection: *coll_name
         Duration: {^Parameter: {Name: "Duration", Default: *duration}}
         Operations:
-          ^Parameter:
-            Name: Operations
-            Default:
-              - OperationName: findOne
-                OperationCommand:
-                  Filter: {^Parameter: {Name: "Filter", Default: *filter}}
-                  Options:
-                    Comment: {^Parameter: {Name: "Comment", Default: "Find One"}}
-
-
-# Parameterized Find Actor
+          - OperationName: RunCommand
+            OperationIsQuiet: true
+            OperationCommand:
+              ping: 1
+#
+# CRUD Actors
+#
+# Parameterized Insert Actor
 InsertOneActor:
   Name: {^Parameter: {Name: "Name", Default: "InsertOne"}}
   Type: CrudActor
-  Threads: {^Parameter: {Name: "Threads", Default: *min_threads}}
+  Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
   Database: {^Parameter: {Name: "Database", Default: *db_name}}
   ClientName: {^Parameter: {Name: "ClientName", Default: "Default"}}
   Phases:
@@ -83,7 +89,7 @@ InsertOneActor:
       NopInPhasesUpTo: *max_phases
       PhaseConfig:
         GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *low_rate}}
-        Threads: {^Parameter: {Name: "Threads", Default: *min_threads}}
+        Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
         Database: *db_name
         Collection: *coll_name
         Duration: {^Parameter: {Name: "Duration", Default: *duration}}
@@ -100,18 +106,110 @@ InsertOneActor:
                   Options:
                     Comment: {^Parameter: {Name: "Comment", Default: "Insert One"}}
 
+# Parameterized Find Actor
+FindOneActor:
+  Name: {^Parameter: {Name: "Name", Default: "FindOne"}}
+  Type: CrudActor
+  Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
+  Database: {^Parameter: {Name: "Database", Default: *db_name}}
+  ClientName: {^Parameter: {Name: "ClientName", Default: "Default"}}
+  Phases:
+    OnlyActiveInPhases:
+      Active: {^Parameter: {Name: "Active", Default: [3]}}
+      NopInPhasesUpTo: *max_phases
+      PhaseConfig:
+        GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *low_rate}}
+        Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
+        Database: *db_name
+        Collection: *coll_name
+        Duration: {^Parameter: {Name: "Duration", Default: *duration}}
+        Operations:
+          ^Parameter:
+            Name: Operations
+            Default:
+              - OperationName: findOne
+                OperationCommand:
+                  Filter: {^Parameter: {Name: "Filter", Default: *filter}}
+                  Options:
+                    Comment: {^Parameter: {Name: "Comment", Default: "Find One"}}
+
+
+# Parameterized Insert Actor
+UpdateOneActor:
+  Name: {^Parameter: {Name: "Name", Default: "InsertOne"}}
+  Type: CrudActor
+  Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
+  Database: {^Parameter: {Name: "Database", Default: *db_name}}
+  ClientName: {^Parameter: {Name: "ClientName", Default: "Default"}}
+  Phases:
+    OnlyActiveInPhases:
+      Active: {^Parameter: {Name: "Active", Default: [3]}}
+      NopInPhasesUpTo: *max_phases
+      PhaseConfig:
+        GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *low_rate}}
+        Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
+        Database: *db_name
+        Collection: *coll_name
+        Duration: {^Parameter: {Name: "Duration", Default: *duration}}
+        Operations:
+          ^Parameter:
+            Name: Operations
+            Default:
+              - OperationName: updateOne
+                OperationCommand:
+                  Filter: {^Parameter: {Name: "Filter", Default: *filter}}
+                  Update: {^Parameter: {Name: "Update", Default: *update_one_doc}}
+                  OperationOptions:
+                    Upsert: false
+                    WriteConcern:
+                      Level: majority
+                  Options:
+                    Comment: {^Parameter: {Name: "Comment", Default: "Update One"}}
+
+
+# Parameterized Insert Actor
+DeleteOneActor:
+  Name: {^Parameter: {Name: "Name", Default: "InsertOne"}}
+  Type: CrudActor
+  Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
+  Database: {^Parameter: {Name: "Database", Default: *db_name}}
+  ClientName: {^Parameter: {Name: "ClientName", Default: "Default"}}
+  Phases:
+    OnlyActiveInPhases:
+      Active: {^Parameter: {Name: "Active", Default: [3]}}
+      NopInPhasesUpTo: *max_phases
+      PhaseConfig:
+        GlobalRate: {^Parameter: {Name: "GlobalRate", Default: *low_rate}}
+        Threads: {^Parameter: {Name: "Threads", Default: *low_threads}}
+        Database: *db_name
+        Collection: *coll_name
+        Duration: {^Parameter: {Name: "Duration", Default: *duration}}
+        Operations:
+          ^Parameter:
+            Name: Operations
+            Default:
+              - OperationName: deleteOne
+                OperationCommand:
+                  Filter: {^Parameter: {Name: "Filter", Default: *filter}}
+                  OperationOptions:
+                    WriteConcern:
+                      Level: majority
+                  Options:
+                    Comment: {^Parameter: {Name: "Comment", Default: "Insert One"}}
 
 # Parameterized Quiesce Actor
 QuiesceActor:
-  Name: {^Parameter: {Name: "Name", Default: "FindOne"}}
+  Name: {^Parameter: {Name: "Name", Default: "QuiesceOne"}}
   Type: QuiesceActor
   Threads: 1
   Database: {^Parameter: {Name: "Database", Default: *db_name}}
   Phases:
     OnlyActiveInPhases:
-      Active: {^Parameter: {Name: "Active", Default: [0, 2, 4, 6, 8, 10]}}
-      NopInPhasesUpTo: *max_phases
+      Active: {^Parameter: {Name: "Active", Default: [0, 2, 4, 6, 8, 10, 12, 14]}}
+      NopInPhasesUpTo: {^Parameter: {Name: "NopInPhasesUpTo", Default: *max_phases}}
       PhaseConfig:
+        SleepBefore: 5 seconds
+        SleepAfter: 5 seconds
         Repeat: 1
 
 

@@ -15,6 +15,8 @@ WorkloadDefaults:
   - &no_rate 100%
   - &low_threads 2
   - &high_threads 16
+  - &num_docs 1_000_000
+  - &filter {_id: {^RandomInt: {min: 0, max: *num_docs}}}
 
 # Even Phases are Quiesce
 # Odd Phases are population (in phase 1) or test.
@@ -27,67 +29,72 @@ Actors:
       Key: PopulateCollectionActor
       Parameters:
         Threads: 1
-        DocumentCount: 1
+        DocumentCount: *num_docs
   # Quiesce in phase [2]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: UpdateOneActor
       Parameters:
-        Name: InsertOneLowThreadLowRate
+        Name: UpdateOneLowThreadLowRate
         Active: [3]
         Threads: *low_threads
         GlobalRate: *low_rate
-        Comment: Insert One Low Thread Low Rate
+        Comment: Update One Low Thread Low Rate
   # Quiesce in phase [4]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: UpdateOneActor
       Parameters:
-        Name: InsertOneLowThreadHighRate
+        Name: UpdateOneLowThreadHighRate
         Active: [5]
         Threads: *low_threads
         GlobalRate: *high_rate
-        Comment: Insert One Low Thread High Rate
+        Filter: *filter
+        Comment: Update One Low Thread High Rate
   # Quiesce in phase [6]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: UpdateOneActor
       Parameters:
-        Name: InsertOneLowThreadNoRate
+        Name: UpdateOneLowThreadNoRate
         Active: [7]
         Threads: *low_threads
         GlobalRate: *no_rate
-        Comment: Insert One Low Thread No Rate
+        Filter: *filter
+        Comment: Update One Low Thread No Rate
   # Quiesce in phase [8]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: UpdateOneActor
       Parameters:
-        Name: InsertOneHighThreadLowRate
+        Name: UpdateOneHighThreadLowRateLimited
         Active: [9]
         Threads: *high_threads
         GlobalRate: *low_rate
-        Comment: Insert One High Thread Low Rate
+        Filter: *filter
+        Comment: Update One High Thread Low Rate
   # Quiesce in phase [10]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: UpdateOneActor
       Parameters:
-        Name: InsertOneHighThreadHighRate
+        Name: UpdateOneHighThreadHighRate
         Active: [11]
         Threads: *high_threads
         GlobalRate: *high_rate
-        Comment: Insert One High Thread High Rate
+        Filter: *filter
+        Comment: Update One High Thread High Rate
   # Quiesce in phase [12]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: UpdateOneActor
       Parameters:
-        Name: InsertOneHighThreadNoRate
+        Name: UpdateOneHighThreadNoRate
         Active: [13]
         Threads: *high_threads
         GlobalRate: *no_rate
-        Comment: Insert One High Thread No Rate
+        Filter: *filter
+        Comment: Update One High Thread No Rate
   # Quiesce in phase [14]
 
 AutoRun:

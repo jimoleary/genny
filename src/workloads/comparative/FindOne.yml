@@ -10,13 +10,17 @@ Clients:
 
 WorkloadDefaults:
   - &path ../../phases/comparative/Operations.yml
-  - &high_rate 1000 per 1 second
   - &low_rate 200 per 1 second
-  - &min_threads 1
-  - &max_threads 16
-  - &filter { _id: 0 }
+  - &high_rate 1000 per 1 second
+  - &no_rate 100%
+  - &low_threads 2
+  - &high_threads 16
+  - &num_docs 1_000_000
+  - &filter {_id: {^RandomInt: {min: 0, max: *num_docs}}}
 
 
+# Even Phases are Quiesce
+# Odd Phases are population (in phase 1) or test.
 Actors:
   - LoadConfig:
       Path: *path
@@ -26,84 +30,76 @@ Actors:
       Key: PopulateCollectionActor
       Parameters:
         Threads: 1
-        DocumentCount: 1
-  - LoadConfig:
-      Path: *path
-      Key: HelloActor
-      Parameters:
-        Active: [2]
-        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*min_threads, *low_rate]} }
+        DocumentCount: *num_docs
+  # Quiesce in phase [2]
   - LoadConfig:
       Path: *path
       Key: FindOneActor
       Parameters:
-        Name: LowThreadFindRateLimited
+        Name: FindOneLowThreadLowRate
         Active: [3]
-        Threads: *min_threads
+        Threads: *low_threads
         GlobalRate: *low_rate
         Comment: Find One Low Thread Low Rate
-  - LoadConfig:
-      Path: *path
-      Key: HelloActor
-      Parameters:
-        Active: [4]
-        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*min_threads, *high_rate]} }
+  # Quiesce in phase [4]
   - LoadConfig:
       Path: *path
       Key: FindOneActor
       Parameters:
-        Name: LowThreadFindRateLimited
+        Name: FindOneLowThreadHighRate
         Active: [5]
+        Threads: *low_threads
         GlobalRate: *high_rate
         Filter: *filter
         Comment: Find One Low Thread High Rate
-  - LoadConfig:
-      Path: *path
-      Key: HelloActor
-      Parameters:
-        Active: [6]
-        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*max_threads, *low_rate]} }
+  # Quiesce in phase [6]
   - LoadConfig:
       Path: *path
       Key: FindOneActor
       Parameters:
-        Name: HighThreadFindRateLimited
+        Name: FindOneLowThreadNoRate
         Active: [7]
-        Threads: *max_threads
+        Threads: *low_threads
+        GlobalRate: *no_rate
+        Filter: *filter
+        Comment: Find One Low Thread No Rate
+  # Quiesce in phase [8]
+  - LoadConfig:
+      Path: *path
+      Key: FindOneActor
+      Parameters:
+        Name: FindOneHighThreadLowRate
+        Active: [9]
+        Threads: *high_threads
         GlobalRate: *low_rate
         Filter: *filter
-        Comment: Find One MultiThread Low Rate
-  - LoadConfig:
-      Path: *path
-      Key: HelloActor
-      Parameters:
-        Active: [8]
-        Comment: {^FormatString: {format: "Starting Find One Threads %d GlobalRate: '%s'", withArgs: [*max_threads, *high_rate]} }
+        Comment: Find One High Thread Low Rate
+  # Quiesce in phase [10]
   - LoadConfig:
       Path: *path
       Key: FindOneActor
       Parameters:
-        Name: MultiThreadFind
-        Active: [9]
-        Threads: *max_threads
+        Name: FindOneHighThreadHighRate
+        Active: [11]
+        Threads: *high_threads
         GlobalRate: *high_rate
         Filter: *filter
-        Comment: Find One MultiThread High Rate
+        Comment: Find One High Thread High Rate
+  # Quiesce in phase [12]
+  - LoadConfig:
+      Path: *path
+      Key: FindOneActor
+      Parameters:
+        Name: FindOneHighThreadNoRate
+        Active: [13]
+        Threads: *high_threads
+        GlobalRate: *no_rate
+        Filter: *filter
+        Comment: Find One High Thread No Rate
+  # Quiesce in phase [14]
 
 AutoRun:
 - When:
     mongodb_setup:
       $eq:
-      - standalone
-      - standalone-classic-query-engine
-#      - replica
-#      - single-replica-classic-query-engine
-#      - single-replica-sbe
-#      - replica
-#      - replica-1dayhistory-15gbwtcache
-#      - replica-all-feature-flags
-#      - replica-maintenance-events
-#      - replica-noflowcontrol
-#      - single-replica
-#      - single-replica-classic-query-engine
-#      - single-replica-sbe
+      - replica

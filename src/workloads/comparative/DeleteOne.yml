@@ -15,9 +15,14 @@ WorkloadDefaults:
   - &no_rate 100%
   - &low_threads 2
   - &high_threads 16
+  - &num_docs 100_000_000
+  - &filter_docs 50_000_000
+  # Try to ensure that the operation always deletes a document, but there is likely a better approach.
+  - &filter {_id: {$gte: {^RandomInt: {min: 0, max: *filter_docs}}}}
+
 
 # Even Phases are Quiesce
-# Odd Phases are population (in phase 1) or test.
+# Odd Phases are setup (phase 1) or test.
 Actors:
   - LoadConfig:
       Path: *path
@@ -26,72 +31,78 @@ Actors:
       Path: *path
       Key: PopulateCollectionActor
       Parameters:
-        Threads: 1
-        DocumentCount: 1
+        Threads: *high_threads
+        DocumentCount: *num_docs
   # Quiesce in phase [2]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: DeleteOneActor
       Parameters:
-        Name: InsertOneLowThreadLowRate
+        Name: DeleteOneLowThreadLowRate
         Active: [3]
         Threads: *low_threads
         GlobalRate: *low_rate
-        Comment: Insert One Low Thread Low Rate
+        Filter: *filter
+        Comment: Delete One Low Thread Low Rate
   # Quiesce in phase [4]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: DeleteOneActor
       Parameters:
-        Name: InsertOneLowThreadHighRate
+        Name: DeleteOneLowThreadHighRate
         Active: [5]
         Threads: *low_threads
         GlobalRate: *high_rate
-        Comment: Insert One Low Thread High Rate
+        Filter: *filter
+        Comment: Delete One Low Thread High Rate
   # Quiesce in phase [6]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: DeleteOneActor
       Parameters:
-        Name: InsertOneLowThreadNoRate
+        Name: DeleteOneLowThreadNoRate
         Active: [7]
         Threads: *low_threads
         GlobalRate: *no_rate
-        Comment: Insert One Low Thread No Rate
+        Filter: *filter
+        Comment: Delete One Low Thread No Rate
   # Quiesce in phase [8]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: DeleteOneActor
       Parameters:
-        Name: InsertOneHighThreadLowRate
+        Name: DeleteOneHighThreadLowRate
         Active: [9]
         Threads: *high_threads
         GlobalRate: *low_rate
-        Comment: Insert One High Thread Low Rate
+        Filter: *filter
+        Comment: Delete One High Thread Low Rate
   # Quiesce in phase [10]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: DeleteOneActor
       Parameters:
-        Name: InsertOneHighThreadHighRate
+        Name: DeleteOneHighThreadHighRate
         Active: [11]
         Threads: *high_threads
         GlobalRate: *high_rate
-        Comment: Insert One High Thread High Rate
+        Filter: *filter
+        Comment: Delete One High Thread High Rate
   # Quiesce in phase [12]
   - LoadConfig:
       Path: *path
-      Key: InsertOneActor
+      Key: DeleteOneActor
       Parameters:
-        Name: InsertOneHighThreadNoRate
+        Name: DeleteOneHighThreadNoRate
         Active: [13]
         Threads: *high_threads
         GlobalRate: *no_rate
-        Comment: Insert One High Thread No Rate
+        Filter: *filter
+        Comment: Delete One High Thread No Rate
   # Quiesce in phase [14]
 
 AutoRun:
-- When:
-    mongodb_setup:
-      $eq:
-      - replica
+  - When:
+      mongodb_setup:
+        $eq:
+          - replica
