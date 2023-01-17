@@ -15,7 +15,7 @@ WorkloadDefaults:
   - &no_rate 100%
   - &low_threads 2
   - &high_threads 16
-  - &num_docs 1_000_000
+  - &num_docs 1000
   - &filter {_id: {^RandomInt: {min: 0, max: *num_docs}}}
 
 # Even Phases are Quiesce
@@ -67,7 +67,7 @@ Actors:
       Path: *path
       Key: UpdateOneActor
       Parameters:
-        Name: UpdateOneHighThreadLowRateLimited
+        Name: UpdateOneHighThreadLowRate
         Active: [9]
         Threads: *high_threads
         GlobalRate: *low_rate

@@ -15,9 +15,12 @@ WorkloadDefaults:
   - &no_rate 100%
   - &low_threads 2
   - &high_threads 16
-  - &num_docs 100_000_000
+  # Rather than trying to figure out how much data to populate, we just issue deletes most of which do not find anything.
+  # However, we can change num_docs to a large number to make most deletes find something. Something like 2x filter_docs
+  # might work.
+  # For now though, to ensure the tcpdump is not too large, this workload just issues deletes.
+  - &num_docs 1
   - &filter_docs 50_000_000
-  # Try to ensure that the operation always deletes a document, but there is likely a better approach.
   - &filter {_id: {$gte: {^RandomInt: {min: 0, max: *filter_docs}}}}
 
 
